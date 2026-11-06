@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>랜덤 문제 출제기 | 오답 마스터 스터디</title>
+  <meta name="description" content="책의 모르는 문제 번호를 랜덤으로 뽑아 완벽히 풀 수 있을 때까지 반복 연습하는 개인 학습 유틸리티" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="app-container">
+    <!-- 상단 헤더 -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">🎯</div>
+        <div>
+          <h1 class="brand-title">랜덤 문제 마스터</h1>
+          <p class="brand-subtitle" id="currentPresetTitle">기본 문제집</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="icon-btn" id="soundToggleBtn" title="효과음 켜기/끄기" aria-label="효과음 켜기/끄기">
+          <span id="soundIcon">🔊</span>
+        </button>
+        <button type="button" class="icon-btn" id="themeToggleBtn" title="테마 변경" aria-label="테마 변경">
+          <span id="themeIcon">🌙</span>
+        </button>
+        <button type="button" class="settings-btn" id="openSettingsBtn">
+          <span aria-hidden="true">⚙️</span>
+          <span>환경설정</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 메인 스테이지 카드 -->
+    <main class="stage-card">
+      <!-- 상단 상태 바: 타이머 및 실행 취소 -->
+      <div class="stage-topbar">
+        <div class="timer-pill" id="problemTimerPill" title="현재 문제 풀이 경과 시간">
+          <span class="timer-dot" id="timerDot"></span>
+          <span class="timer-label">풀이 시간</span>
+          <span class="timer-value" id="problemTimerText">00:00</span>
+        </div>
+
+        <div class="topbar-right">
+          <button type="button" class="ghost-chip-btn" id="undoBtn" disabled title="방금 누른 정답/오답 되돌리기 (단축키: Z)">
+            ↩ 실행 취소
+          </button>
+        </div>
+      </div>
+
+      <!-- 중앙 디스플레이 영역 -->
+      <div class="display-area" id="displayArea">
+        <!-- 1. 문제 목록이 비어있을 때 -->
+        <div class="state-view" id="emptyStateView">
+          <div class="empty-illustration">📚</div>
+          <h2 class="state-title">등록된 문제 번호가 없습니다</h2>
+          <p class="state-desc">
+            환경설정에서 연습할 문제 번호 목록을 입력하고<br />
+            모든 문제를 정복할 때까지 랜덤 뽑기를 시작해 보세요!
+          </p>
+          <button type="button" class="primary-btn lg-btn" id="emptyOpenSettingsBtn">
+            ⚙️ 문제 목록 입력하러 가기
+          </button>
+        </div>
+
+        <!-- 2. 대기 상태 (출제 시작 전) -->
+        <div class="state-view hidden" id="readyStateView">
+          <div class="ready-badge">준비 완료</div>
+          <h2 class="state-title">다음 문제를 뽑을 준비가 되었습니다</h2>
+          <p class="state-desc" id="readyRemainDesc">남은 문제 0개 중 하나를 랜덤으로 출제합니다.</p>
+          <button type="button" class="primary-btn xl-btn pulse-btn" id="drawProblemBtn">
+            🎲 랜덤 문제 뽑기 <span class="kbd-hint">Space</span>
+          </button>
+        </div>
+
+        <!-- 3. 3, 2, 1 카운트다운 상태 -->
+        <div class="state-view hidden" id="countdownStateView" aria-live="polite">
+          <p class="countdown-caption">문제 번호 추첨 중...</p>
+          <div class="countdown-ring-wrap">
+            <svg class="countdown-svg" viewBox="0 0 120 120">
+              <circle class="countdown-circle-bg" cx="60" cy="60" r="52" />
+              <circle class="countdown-circle-fg" id="countdownCircleFg" cx="60" cy="60" r="52" />
+            </svg>
+            <div class="countdown-number" id="countdownNumber">3</div>
+          </div>
+          <button type="button" class="text-link-btn" id="skipCountdownBtn">카운트다운 건너뛰기</button>
+        </div>
+
+        <!-- 4. 문제 번호 출력 및 채점 대기 상태 -->
+        <div class="state-view hidden" id="questionStateView" aria-live="polite">
+          <div class="question-badges" id="questionBadges">
+            <!-- 동적 배지 (예: 첫 도전 / 오답 N회 누적) -->
+          </div>
+
+          <div class="question-box">
+            <span class="question-label">PROBLEM</span>
+            <div class="question-number" id="questionNumberDisplay">15</div>
+          </div>
+
+          <p class="question-prompt">책에서 위 번호의 문제를 푼 뒤 결과를 선택하세요</p>
+
+          <div class="judge-actions">
+            <button type="button" class="judge-btn correct-btn" id="correctBtn">
+              <span class="judge-icon">⭕</span>
+              <span class="judge-text">
+                <strong>정답</strong>
+                <small>다음 출제에서 제외 <kbd>O</kbd> / <kbd>1</kbd></small>
+              </span>
+            </button>
+
+            <button type="button" class="judge-btn wrong-btn" id="wrongBtn">
+              <span class="judge-icon">❌</span>
+              <span class="judge-text">
+                <strong>오답</strong>
+                <small>다음 출제 후보에 유지 <kbd>X</kbd> / <kbd>2</kbd></small>
+              </span>
+            </button>
+          </div>
+
+          <div class="secondary-question-actions">
+            <button type="button" class="text-link-btn" id="redrawBtn" title="현재 문제를 풀지 않고 다른 문제 다시 뽑기">
+              🔀 보류하고 다른 번호 다시 뽑기
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. 모든 문제 완료 (올클리어) 상태 -->
+        <div class="state-view hidden" id="completeStateView">
+          <div class="complete-trophy">🏆</div>
+          <h2 class="state-title">모든 문제를 마스터했습니다!</h2>
+          <p class="state-desc" id="completeSummaryText">
+            총 0문제를 모두 정답 처리했습니다. 수고하셨습니다!
+          </p>
+
+          <div class="stats-summary-grid" id="completeStatsGrid">
+            <div class="stat-box">
+              <span class="stat-label">총 시도 횟수</span>
+              <strong class="stat-val" id="statTotalAttempts">0회</strong>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">첫 시도 정답률</span>
+              <strong class="stat-val" id="statFirstTryRate">0%</strong>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">총 풀이 시간</span>
+              <strong class="stat-val" id="statTotalTime">0분 0초</strong>
+            </div>
+          </div>
+
+          <!-- 자주 틀린 문제 요약 -->
+          <div class="hardest-problems-box hidden" id="hardestProblemsBox">
+            <h3 class="sub-box-title">🔥 이번 학습에서 틀렸던 문제 (복습 추천)</h3>
+            <div class="chip-list" id="hardestProblemsList"></div>
+          </div>
+
+          <div class="complete-actions">
+            <button type="button" class="warning-btn lg-btn hidden" id="retryWrongOnlyBtn">
+              🔥 틀렸던 문제만 다시 풀기
+            </button>
+            <button type="button" class="primary-btn lg-btn" id="restartAllBtn">
+              🔄 전체 목록 처음부터 다시 풀기
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 진행도 섹션 (정답처리한 갯수 / 총갯수) -->
+      <section class="progress-section" aria-label="학습 진행 현황">
+        <div class="progress-header">
+          <div class="progress-main-counter">
+            <span class="counter-title">정답 완료 현황</span>
+            <strong class="counter-ratio" id="progressRatioText">0 / 0</strong>
+            <span class="counter-percent" id="progressPercentText">(0%)</span>
+          </div>
+          <div class="progress-sub-counters">
+            <span class="sub-pill remain-pill">남은 문제 <strong id="remainCountText">0</strong></span>
+            <span class="sub-pill wrong-pill">누적 오답 <strong id="totalWrongClicksText">0</strong></span>
+          </div>
+        </div>
+
+        <div class="progress-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBarTrack">
+          <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 전체 문제 번호 보드 (접기/펼치기 및 상태 확인) -->
+    <section class="board-card">
+      <div class="board-header">
+        <div class="board-title-group">
+          <h2 class="board-title">문제 현황 보드</h2>
+          <span class="board-hint">번호를 클릭하면 정답/미해결 상태를 직접 전환할 수 있습니다</span>
+        </div>
+        <div class="board-legend">
+          <span class="legend-item"><i class="dot dot-pending"></i>미해결</span>
+          <span class="legend-item"><i class="dot dot-wrong"></i>오답 이력</span>
+          <span class="legend-item"><i class="dot dot-solved"></i>정답 완료</span>
+        </div>
+      </div>
+      <div class="problem-chips-container" id="problemChipsContainer">
+        <!-- 문제 칩들이 렌더링됨 -->
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span>단축키: <kbd>Space</kbd> 문제 뽑기 · <kbd>O</kbd> 또는 <kbd>1</kbd> 정답 · <kbd>X</kbd> 또는 <kbd>2</kbd> 오답 · <kbd>Z</kbd> 실행 취소</span>
+    </footer>
+  </div>
+
+  <!-- 환경설정 모달 -->
+  <div class="modal-backdrop hidden" id="settingsModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title" id="settingsModalTitle">⚙️ 환경설정 및 문제 목록 관리</h2>
+        <button type="button" class="icon-btn" id="closeSettingsBtn" aria-label="환경설정 닫기">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- 프리셋 / 문제집 제목 설정 -->
+        <div class="form-group">
+          <label class="form-label" for="presetTitleInput">문제집 / 단원 메모 (선택)</label>
+          <div class="preset-row">
+            <input
+              type="text"
+              id="presetTitleInput"
+              class="text-input"
+              placeholder="예: 수학의 정석 미적분 3단원 모르는 문제"
+              maxlength="50"
+            />
+            <button type="button" class="secondary-btn" id="savePresetBtn" title="현재 문제 목록을 보관함에 저장">
+              💾 보관함 저장
+            </button>
+          </div>
+          <!-- 저장된 프리셋 목록 -->
+          <div class="saved-presets-wrap hidden" id="savedPresetsWrap">
+            <span class="presets-caption">저장된 보관함:</span>
+            <div class="saved-presets-list" id="savedPresetsList"></div>
+          </div>
+        </div>
+
+        <!-- 빠른 연속 번호 추가 도우미 -->
+        <div class="form-group">
+          <div class="label-row">
+            <label class="form-label">연속 번호 빠른 추가 도우미</label>
+            <span class="label-sub">예: 1번부터 20번까지 한 번에 입력창에 추가</span>
+          </div>
+          <div class="range-helper-row">
+            <input type="text" id="rangePrefixInput" class="text-input sm-input" placeholder="접두어 (선택, 예: 3-)" />
+            <input type="number" id="rangeStartInput" class="text-input num-input" placeholder="시작 (1)" min="1" />
+            <span class="range-tilde">~</span>
+            <input type="number" id="rangeEndInput" class="text-input num-input" placeholder="끝 (20)" min="1" />
+            <button type="button" class="secondary-btn" id="appendRangeBtn">+ 목록에 추가</button>
+          </div>
+        </div>
+
+        <!-- 문제 목록 Textarea -->
+        <div class="form-group">
+          <div class="label-row">
+            <label class="form-label" for="problemListTextarea">
+              문제 번호 목록 입력 <span class="badge-count" id="textareaLineCount">0개</span>
+            </label>
+            <span class="label-sub">줄바꿈(Enter)으로 구분해 입력하세요 (예: <code>1~10</code> 범위 표기도 자동 변환)</span>
+          </div>
+          <textarea
+            id="problemListTextarea"
+            class="problem-textarea"
+            rows="8"
+            placeholder="연습할 문제 번호를 한 줄에 하나씩 입력하세요.&#10;예시:&#10;3&#10;7&#10;12&#10;15-18&#10;p.42 5번"
+          ></textarea>
+        </div>
+
+        <!-- 출제 옵션 설정 -->
+        <div class="settings-options-grid">
+          <label class="toggle-option">
+            <div>
+              <strong>3, 2, 1 카운트다운 애니메이션</strong>
+              <small>문제를 뽑을 때 긴장감 있는 3초 카운트다운을 표시합니다</small>
+            </div>
+            <input type="checkbox" id="countdownEnabledToggle" checked />
+          </label>
+
+          <label class="toggle-option">
+            <div>
+              <strong>카운트다운 속도</strong>
+              <small>카운트다운 1초 간격 조절</small>
+            </div>
+            <select id="countdownSpeedSelect" class="select-input">
+              <option value="900">기본 (0.9초 × 3)</option>
+              <option value="550">빠르게 (0.55초 × 3)</option>
+              <option value="350">초고속 (0.35초 × 3)</option>
+            </select>
+          </label>
+
+          <label class="toggle-option">
+            <div>
+              <strong>오답 문제 가중치 출제</strong>
+              <small>틀린 횟수가 많은 문제일수록 뽑힐 확률을 조금 더 높입니다</small>
+            </div>
+            <input type="checkbox" id="weightedRandomToggle" />
+          </label>
+
+          <label class="toggle-option">
+            <div>
+              <strong>번호 자동 출제 (연속 모드)</strong>
+              <small>정답/오답 클릭 후 즉시 다음 문제 카운트다운을 시작합니다</small>
+            </div>
+            <input type="checkbox" id="autoNextToggle" checked />
+          </label>
+        </div>
+
+        <!-- 초기화 영역 -->
+        <div class="danger-zone">
+          <div class="danger-info">
+            <strong>🔄 모두 초기화</strong>
+            <small>진행 상황(정답/오답 기록)을 초기화하거나 문제 목록 전체를 비웁니다.</small>
+          </div>
+          <div class="danger-buttons">
+            <button type="button" class="warning-outline-btn" id="resetProgressOnlyBtn">
+              진행도만 초기화 (0/총갯수)
+            </button>
+            <button type="button" class="danger-btn" id="resetAllBtn">
+              🗑️ 목록·진행도 모두 초기화
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="ghost-btn" id="cancelSettingsBtn">닫기</button>
+        <button type="button" class="primary-btn" id="saveSettingsBtn">✅ 문제 목록 적용하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- 컨페티 캔버스 -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
